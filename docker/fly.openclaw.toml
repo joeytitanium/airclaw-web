@@ -1,0 +1,22 @@
+# Fly.io configuration for per-user OpenClaw machines
+# This is used as a template when creating user machines via the Machines API
+app = 'pocketclaw-users'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = 'Dockerfile.openclaw'
+
+[env]
+  NODE_ENV = 'production'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

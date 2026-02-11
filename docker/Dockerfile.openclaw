@@ -1,0 +1,27 @@
+# OpenClaw container image for per-user Fly machines
+FROM node:20-slim
+
+# Install dependencies for OpenClaw
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install OpenClaw (placeholder - replace with actual OpenClaw installation)
+# For now, we'll create a simple HTTP server that proxies to the Anthropic API
+COPY openclaw-server.ts ./
+COPY package.json ./
+
+RUN npm install
+
+# Expose HTTP port for message handling
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Start the server
+CMD ["npx", "tsx", "openclaw-server.ts"]

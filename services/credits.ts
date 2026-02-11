@@ -201,7 +201,7 @@ export async function getUsageStats(
     })
     .from(usageLogs)
     .where(
-      sql`${usageLogs.userId} = ${userId} AND ${usageLogs.createdAt} >= ${since}`,
+      sql`${usageLogs.userId} = ${userId} AND ${usageLogs.createdAt} >= ${since.toISOString()}`,
     );
 
   return {

@@ -52,7 +52,7 @@ export async function sendMessage(
 
     // Send message to machine
     const machineResponse = await sendToMachine(
-      flyMachine.private_ip,
+      flyMachine.id,
       content,
       context,
     );
@@ -82,7 +82,7 @@ export async function sendMessage(
       messageId: assistantMessage.id,
     };
   } catch (error) {
-    logger.error({ error, userId }, 'Failed to send message to machine');
+    logger.error({ err: error, userId }, 'Failed to send message to machine');
     return {
       success: false,
       error: 'Failed to process message',
@@ -91,15 +91,19 @@ export async function sendMessage(
   }
 }
 
+const FLY_APP_NAME = process.env.FLY_APP_NAME || 'pocketclaw-openclaw';
+
 async function sendToMachine(
-  privateIp: string,
+  machineId: string,
   content: string,
   context: MessageContext,
 ): Promise<MachineResponse> {
-  const response = await fetch(`http://${privateIp}:8080/message`, {
+  const url = `https://${FLY_APP_NAME}.fly.dev/message`;
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'fly-force-instance-id': machineId,
     },
     body: JSON.stringify({
       content,
@@ -108,7 +112,8 @@ async function sendToMachine(
   });
 
   if (!response.ok) {
-    throw new Error(`Machine returned ${response.status}`);
+    const body = await response.text();
+    throw new Error(`Machine returned ${response.status}: ${body}`);
   }
 
   return response.json();

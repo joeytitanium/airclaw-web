@@ -1,6 +1,6 @@
 # Fly.io configuration for per-user OpenClaw machines
 # This is used as a template when creating user machines via the Machines API
-app = 'pocketclaw-users'
+app = 'pocketclaw-openclaw'
 primary_region = 'sjc'
 
 [build]

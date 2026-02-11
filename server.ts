@@ -4,14 +4,10 @@ import { parse } from 'node:url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { logger } from '@/lib/logger';
-import { auth } from '@/lib/auth';
-import { sendMessage } from '@/services/message';
-import { hasEnoughCredits } from '@/services/credits';
-import { getMachineStatus } from '@/services/machine';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
-const port = parseInt(process.env.PORT || '3000', 10);
+const port = Number.parseInt(process.env.PORT || '3000', 10);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
@@ -33,23 +29,14 @@ interface WSResponse {
   errorCode?: string;
 }
 
-async function authenticateWebSocket(
-  request: Request,
-): Promise<string | null> {
-  try {
-    // Extract session from cookie
-    const session = await auth();
-    return session?.user?.id ?? null;
-  } catch (error) {
-    logger.error({ error }, 'WebSocket authentication failed');
-    return null;
-  }
-}
-
-app.prepare().then(() => {
+app.prepare().then(async () => {
+  // Dynamic imports — must load after app.prepare() so Next.js runtime is ready
+  const { sendMessage } = await import('@/services/message');
+  const { hasEnoughCredits } = await import('@/services/credits');
+  const { getMachineStatus } = await import('@/services/machine');
   const server = createServer(async (req, res) => {
     try {
-      const parsedUrl = parse(req.url!, true);
+      const parsedUrl = parse(req.url || '/', true);
       await handle(req, res, parsedUrl);
     } catch (err) {
       logger.error({ err }, 'Error handling request');
@@ -58,30 +45,65 @@ app.prepare().then(() => {
     }
   });
 
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });
+
+  // Only handle our /ws path upgrades
+  server.on('upgrade', (request, socket, head) => {
+    const { pathname } = parse(request.url ?? '/', true);
+
+    // Only handle our explicit WebSocket path
+    if (pathname !== '/ws') {
+      return;
+    }
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
 
   wss.on('connection', async (ws, request) => {
-    // Create a minimal Request object for auth
     const cookies = request.headers.cookie || '';
     const host = request.headers.host || 'localhost:3000';
     const protocol = dev ? 'http' : 'https';
 
-    // Parse session token from cookies
+    // Register close/error handlers IMMEDIATELY so we always see disconnects
+    let userId: string | null = null;
+
+    ws.on('close', (code, reason) => {
+      logger.info({ userId, code, reason: reason.toString() }, 'WebSocket disconnected');
+      if (userId) {
+        connections.get(userId)?.delete(ws);
+        if (connections.get(userId)?.size === 0) {
+          connections.delete(userId);
+        }
+      }
+    });
+
+    ws.on('error', (error) => {
+      logger.error({ error, userId }, 'WebSocket error');
+    });
+
+    // Parse session token from cookies (handle both secure and non-secure prefixes)
     const sessionToken = cookies
       .split(';')
-      .find((c) => c.trim().startsWith('authjs.session-token='))
-      ?.split('=')[1];
+      .map((c) => c.trim())
+      .find(
+        (c) =>
+          c.startsWith('authjs.session-token=') ||
+          c.startsWith('__Secure-authjs.session-token='),
+      )
+      ?.replace(/^[^=]+=/, '');
 
     if (!sessionToken) {
-      logger.warn('WebSocket connection without session token');
+      logger.warn(
+        { cookieNames: cookies.split(';').map((c) => c.trim().split('=')[0]) },
+        'WebSocket connection without session token',
+      );
       ws.close(4001, 'Unauthorized');
       return;
     }
 
-    // For now, we'll validate the session via a quick fetch to our own API
-    // This is a workaround since we can't directly use NextAuth's auth() in raw WS
-    let userId: string | null = null;
-
+    // Validate the session via a fetch to our own API
     try {
       const validateResponse = await fetch(`${protocol}://${host}/api/user`, {
         headers: {
@@ -94,12 +116,15 @@ app.prepare().then(() => {
         if (userData.success && userData.data?.id) {
           userId = userData.data.id;
         }
+      } else {
+        logger.warn({ status: validateResponse.status }, 'WebSocket session validation failed');
       }
     } catch (error) {
       logger.error({ error }, 'Failed to validate WebSocket session');
     }
 
     if (!userId) {
+      logger.warn('WebSocket closing: no userId after validation');
       ws.close(4001, 'Unauthorized');
       return;
     }
@@ -112,15 +137,7 @@ app.prepare().then(() => {
     }
     connections.get(userId)!.add(ws);
 
-    // Send initial status
-    const status = await getMachineStatus(userId);
-    ws.send(
-      JSON.stringify({
-        type: 'status',
-        status: status.status,
-      } as WSResponse),
-    );
-
+    // Set up message handler
     ws.on('message', async (data) => {
       try {
         const message: WSMessage = JSON.parse(data.toString());
@@ -130,8 +147,8 @@ app.prepare().then(() => {
             ws.send(JSON.stringify({ type: 'pong' } as WSResponse));
             break;
 
-          case 'status':
-            const currentStatus = await getMachineStatus(userId);
+          case 'status': {
+            const currentStatus = await getMachineStatus(userId!);
             ws.send(
               JSON.stringify({
                 type: 'status',
@@ -139,8 +156,9 @@ app.prepare().then(() => {
               } as WSResponse),
             );
             break;
+          }
 
-          case 'message':
+          case 'message': {
             if (!message.content) {
               ws.send(
                 JSON.stringify({
@@ -152,7 +170,7 @@ app.prepare().then(() => {
             }
 
             // Check credits before processing
-            if (!(await hasEnoughCredits(userId))) {
+            if (!(await hasEnoughCredits(userId!))) {
               ws.send(
                 JSON.stringify({
                   type: 'error',
@@ -164,7 +182,7 @@ app.prepare().then(() => {
             }
 
             // Send message and get response
-            const result = await sendMessage(userId, message.content);
+            const result = await sendMessage(userId!, message.content);
 
             if (result.success) {
               ws.send(
@@ -184,6 +202,7 @@ app.prepare().then(() => {
               );
             }
             break;
+          }
 
           default:
             ws.send(
@@ -195,26 +214,31 @@ app.prepare().then(() => {
         }
       } catch (error) {
         logger.error({ error }, 'Error handling WebSocket message');
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(
+            JSON.stringify({
+              type: 'error',
+              error: 'Internal error',
+            } as WSResponse),
+          );
+        }
+      }
+    });
+
+    // Send initial status (after handlers are registered)
+    try {
+      const status = await getMachineStatus(userId);
+      if (ws.readyState === WebSocket.OPEN) {
         ws.send(
           JSON.stringify({
-            type: 'error',
-            error: 'Internal error',
+            type: 'status',
+            status: status.status,
           } as WSResponse),
         );
       }
-    });
-
-    ws.on('close', () => {
-      logger.info({ userId }, 'WebSocket disconnected');
-      connections.get(userId)?.delete(ws);
-      if (connections.get(userId)?.size === 0) {
-        connections.delete(userId);
-      }
-    });
-
-    ws.on('error', (error) => {
-      logger.error({ error, userId }, 'WebSocket error');
-    });
+    } catch (error) {
+      logger.error({ error }, 'Failed to send initial status');
+    }
   });
 
   server.listen(port, () => {

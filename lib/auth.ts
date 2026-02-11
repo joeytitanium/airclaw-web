@@ -1,28 +1,75 @@
-import NextAuth from 'next-auth';
-import Google from 'next-auth/providers/google';
-import Apple from 'next-auth/providers/apple';
-import GitHub from 'next-auth/providers/github';
-import { db } from '@/db';
-import { users, credits } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { db } from "@/db";
+import { credits, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import NextAuth from "next-auth";
+import type { Provider } from "next-auth/providers";
+import Apple from "next-auth/providers/apple";
+import Credentials from "next-auth/providers/credentials";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
+
+const isDev = process.env.NODE_ENV !== "production";
+
+const providers: Provider[] = [
+  Google({
+    clientId: process.env.AUTH_GOOGLE_ID,
+    clientSecret: process.env.AUTH_GOOGLE_SECRET,
+  }),
+  Apple({
+    clientId: process.env.AUTH_APPLE_ID,
+    clientSecret: process.env.AUTH_APPLE_SECRET,
+  }),
+  GitHub({
+    clientId: process.env.AUTH_GITHUB_ID,
+    clientSecret: process.env.AUTH_GITHUB_SECRET,
+  }),
+];
+
+if (isDev) {
+  providers.push(
+    Credentials({
+      name: "Dev Login",
+      credentials: {
+        email: { label: "Email", type: "email" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email as string;
+        if (!email) return null;
+
+        // Find or create user
+        let user = await db.query.users.findFirst({
+          where: eq(users.email, email),
+        });
+
+        if (!user) {
+          const [newUser] = await db
+            .insert(users)
+            .values({
+              email,
+              name: email.split("@")[0],
+            })
+            .returning();
+
+          await db.insert(credits).values({
+            userId: newUser.id,
+            balance: 100,
+            totalPurchased: 0,
+            totalUsed: 0,
+          });
+
+          user = newUser;
+        }
+
+        return { id: user.id, email: user.email, name: user.name };
+      },
+    }),
+  );
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
-    Apple({
-      clientId: process.env.AUTH_APPLE_ID,
-      clientSecret: process.env.AUTH_APPLE_SECRET,
-    }),
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID,
-      clientSecret: process.env.AUTH_GITHUB_SECRET,
-    }),
-  ],
+  providers,
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
   },
   callbacks: {
     async signIn({ user, account }) {
@@ -87,7 +134,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
+    signIn: "/auth/signin",
+    error: "/auth/error",
   },
 });

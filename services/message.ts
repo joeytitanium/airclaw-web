@@ -9,6 +9,9 @@ interface SendMessageResult {
   success: boolean;
   response?: string;
   messageId?: string;
+  creditsUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   error?: string;
   errorCode?: 'insufficient-credits' | 'machine-error' | 'internal-error';
 }
@@ -73,7 +76,7 @@ export async function sendMessage(
       .returning();
 
     // Log usage and deduct credits
-    await logUsage({
+    const { creditsUsed } = await logUsage({
       userId,
       messageId: assistantMessage.id,
       inputTokens: machineResponse.inputTokens,
@@ -85,6 +88,9 @@ export async function sendMessage(
       success: true,
       response: machineResponse.content,
       messageId: assistantMessage.id,
+      creditsUsed,
+      inputTokens: machineResponse.inputTokens,
+      outputTokens: machineResponse.outputTokens,
     };
   } catch (error) {
     logger.error({ err: error, userId }, 'Failed to send message to machine');
@@ -104,32 +110,48 @@ async function sendToMachine(
   chatMessages: Array<{ role: string; content: string }>,
 ): Promise<MachineResponse> {
   const url = `https://${FLY_APP_NAME}.fly.dev/v1/chat/completions`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${MACHINE_SECRET}`,
-      'fly-force-instance-id': machineId,
-    },
-    body: JSON.stringify({
-      model: 'openclaw:main',
-      messages: chatMessages,
-    }),
-  });
+  const maxRetries = 12;
+  const retryDelayMs = 5000;
 
-  if (!response.ok) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${MACHINE_SECRET}`,
+        'fly-force-instance-id': machineId,
+      },
+      body: JSON.stringify({
+        model: 'openclaw:main',
+        messages: chatMessages,
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return {
+        content: data.choices?.[0]?.message?.content || '',
+        inputTokens: data.usage?.prompt_tokens || 0,
+        outputTokens: data.usage?.completion_tokens || 0,
+        model: data.model || 'openclaw',
+      };
+    }
+
+    // Retry on 502 (gateway not ready) — the OpenClaw gateway takes ~40s to boot
+    if (response.status === 502 && attempt < maxRetries) {
+      logger.info(
+        { machineId, attempt: attempt + 1, maxRetries },
+        'Machine gateway not ready, retrying',
+      );
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      continue;
+    }
+
     const body = await response.text();
     throw new Error(`Machine returned ${response.status}: ${body}`);
   }
 
-  const data = await response.json();
-
-  return {
-    content: data.choices?.[0]?.message?.content || '',
-    inputTokens: data.usage?.prompt_tokens || 0,
-    outputTokens: data.usage?.completion_tokens || 0,
-    model: data.model || 'openclaw',
-  };
+  throw new Error('Unreachable');
 }
 
 export async function getMessageHistory(

@@ -24,6 +24,9 @@ interface WSResponse {
   type: 'message' | 'pong' | 'status' | 'error';
   content?: string;
   messageId?: string;
+  creditsUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   status?: string;
   error?: string;
   errorCode?: string;
@@ -196,6 +199,9 @@ app.prepare().then(async () => {
                   type: 'message',
                   content: result.response,
                   messageId: result.messageId,
+                  creditsUsed: result.creditsUsed,
+                  inputTokens: result.inputTokens,
+                  outputTokens: result.outputTokens,
                 } as WSResponse),
               );
             } else {

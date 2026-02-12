@@ -37,6 +37,7 @@ export async function GET() {
         name: user.name,
         image: user.image,
         createdAt: user.createdAt,
+        isAdmin: user.email === process.env.ADMIN_EMAIL,
       },
     });
   } catch (error) {

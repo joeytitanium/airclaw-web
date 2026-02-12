@@ -8,12 +8,18 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt?: string;
+  creditsUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
 }
 
 interface WSResponse {
   type: 'message' | 'pong' | 'status' | 'error';
   content?: string;
   messageId?: string;
+  creditsUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
   status?: string;
   error?: string;
   errorCode?: string;
@@ -25,6 +31,7 @@ export default function DevChatPage() {
   const [machineStatus, setMachineStatus] = useState('stopped');
   const [credits, setCredits] = useState<number | null>(null);
   const [userEmail, setUserEmail] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [sending, setSending] = useState(false);
   const [machineLoading, setMachineLoading] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
@@ -43,7 +50,10 @@ export default function DevChatPage() {
     fetch('/api/user')
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setUserEmail(d.data.email);
+        if (d.success) {
+          setUserEmail(d.data.email);
+          setIsAdmin(d.data.isAdmin);
+        }
       });
   }, []);
 
@@ -128,6 +138,9 @@ export default function DevChatPage() {
                 id: data.messageId,
                 role: 'assistant',
                 content: data.content || '',
+                creditsUsed: data.creditsUsed,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
               },
             ]);
             setSending(false);
@@ -358,9 +371,16 @@ export default function DevChatPage() {
                 fontSize: '0.75rem',
                 color: '#666',
                 marginBottom: '0.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
               }}
             >
-              {msg.role === 'user' ? 'You' : 'Assistant'}
+              <span>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+              {isAdmin && msg.creditsUsed != null && (
+                <span style={{ color: '#999' }}>
+                  {msg.creditsUsed} cr · {msg.inputTokens}in/{msg.outputTokens}out
+                </span>
+              )}
             </div>
             {msg.content}
           </div>

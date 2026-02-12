@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { startMachine } from '@/services/machine';
 import { createApiResponse } from '@/utils/create-api-response';
@@ -7,16 +7,16 @@ const DOMAIN = '/api/machine/start';
 
 export async function POST() {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
       });
     }
 
-    const { machine, flyMachine } = await startMachine(session.user.id);
+    const { machine, flyMachine } = await startMachine(session.userId);
 
     return createApiResponse({
       code: '200-success',

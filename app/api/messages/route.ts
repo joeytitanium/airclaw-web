@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { clearMessageHistory, getMessageHistory } from '@/services/message';
 import { createApiResponse } from '@/utils/create-api-response';
@@ -7,9 +7,9 @@ const DOMAIN = '/api/messages';
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
     const offset = Number.parseInt(url.searchParams.get('offset') || '0', 10);
 
-    const messages = await getMessageHistory(session.user.id, limit, offset);
+    const messages = await getMessageHistory(session.userId, limit, offset);
 
     return createApiResponse({
       code: '200-success',
@@ -44,16 +44,16 @@ export async function GET(request: Request) {
 
 export async function DELETE() {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
       });
     }
 
-    await clearMessageHistory(session.user.id);
+    await clearMessageHistory(session.userId);
 
     return createApiResponse({
       code: '200-success',

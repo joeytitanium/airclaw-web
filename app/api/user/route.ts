@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { createApiResponse } from '@/utils/create-api-response';
 import { eq } from 'drizzle-orm';
@@ -9,9 +9,9 @@ const DOMAIN = '/api/user';
 
 export async function GET() {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -19,7 +19,7 @@ export async function GET() {
     }
 
     const user = await db.query.users.findFirst({
-      where: eq(users.id, session.user.id),
+      where: eq(users.id, session.userId),
     });
 
     if (!user) {

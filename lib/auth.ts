@@ -1,6 +1,8 @@
 import { db } from '@/db';
 import { credits, users } from '@/db/schema';
+import { verifyMobileJwt } from '@/lib/mobile-auth';
 import { eq } from 'drizzle-orm';
+import { headers } from 'next/headers';
 import NextAuth from 'next-auth';
 import type { Provider } from 'next-auth/providers';
 import Apple from 'next-auth/providers/apple';
@@ -25,8 +27,7 @@ const providers: Provider[] = [
   }),
 ];
 
-// TODO: revert — temporarily enabled for prod testing
-if (true) {
+if (isDev) {
   providers.push(
     Credentials({
       name: 'Dev Login',
@@ -67,7 +68,7 @@ if (true) {
   );
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const nextAuth = NextAuth({
   providers,
   session: {
     strategy: 'jwt',
@@ -139,3 +140,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/auth/error',
   },
 });
+
+export const { handlers, signIn, signOut, auth } = nextAuth;
+
+/**
+ * Unified session getter for API routes.
+ * Tries NextAuth cookie session first, then falls back to Bearer token (mobile).
+ * Returns { userId } or null.
+ */
+export async function getSession(): Promise<{ userId: string } | null> {
+  // Try NextAuth cookie-based session first
+  const session = await auth();
+  if (session?.user?.id) {
+    return { userId: session.user.id };
+  }
+
+  // Fall back to Bearer token (mobile clients)
+  const h = await headers();
+  const authorization = h.get('authorization');
+  if (authorization?.startsWith('Bearer ')) {
+    const token = authorization.slice(7);
+    return verifyMobileJwt(token);
+  }
+
+  return null;
+}

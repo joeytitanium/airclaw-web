@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { getCreditHistory } from '@/services/credits';
 import { createApiResponse } from '@/utils/create-api-response';
@@ -7,9 +7,9 @@ const DOMAIN = '/api/credits/history';
 
 export async function GET(request: Request) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
 
-    const history = await getCreditHistory(session.user.id, limit);
+    const history = await getCreditHistory(session.userId, limit);
 
     return createApiResponse({
       code: '200-success',

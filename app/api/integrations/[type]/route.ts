@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import {
   type IntegrationType,
@@ -23,9 +23,9 @@ export async function GET(
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -41,7 +41,7 @@ export async function GET(
       });
     }
 
-    const integration = await getIntegration(session.user.id, type);
+    const integration = await getIntegration(session.userId, type);
 
     return createApiResponse({
       code: '200-success',
@@ -71,9 +71,9 @@ export async function POST(
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -99,7 +99,7 @@ export async function POST(
       });
     }
 
-    await saveIntegration(session.user.id, type, parsed.data);
+    await saveIntegration(session.userId, type, parsed.data);
 
     return createApiResponse({
       code: '200-success',
@@ -123,9 +123,9 @@ export async function PATCH(
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -152,7 +152,7 @@ export async function PATCH(
     }
 
     const success = await toggleIntegration(
-      session.user.id,
+      session.userId,
       type,
       parsed.data.enabled,
     );
@@ -182,9 +182,9 @@ export async function DELETE(
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {
-    const session = await auth();
+    const session = await getSession();
 
-    if (!session?.user?.id) {
+    if (!session) {
       return createApiResponse({
         code: '401-unauthorized',
         publicFacingMessage: 'Not authenticated',
@@ -200,7 +200,7 @@ export async function DELETE(
       });
     }
 
-    const success = await deleteIntegration(session.user.id, type);
+    const success = await deleteIntegration(session.userId, type);
 
     if (!success) {
       return createApiResponse({

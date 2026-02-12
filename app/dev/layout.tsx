@@ -5,7 +5,8 @@ export default async function DevLayout({
 }: {
   children: React.ReactNode;
 }) {
-  if (process.env.NODE_ENV === 'production') {
+  // TODO: revert — temporarily disabled for prod testing
+  if (false && process.env.NODE_ENV === 'production') {
     redirect('/');
   }
 

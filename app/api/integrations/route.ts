@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { getIntegrations } from '@/services/integrations';
 import { createApiResponse } from '@/utils/create-api-response';
-import { logger } from '@/lib/logger';
 
 const DOMAIN = '/api/integrations';
 

@@ -1,14 +1,14 @@
-import { db } from "@/db";
-import { credits, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import NextAuth from "next-auth";
-import type { Provider } from "next-auth/providers";
-import Apple from "next-auth/providers/apple";
-import Credentials from "next-auth/providers/credentials";
-import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
+import { db } from '@/db';
+import { credits, users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import NextAuth from 'next-auth';
+import type { Provider } from 'next-auth/providers';
+import Apple from 'next-auth/providers/apple';
+import Credentials from 'next-auth/providers/credentials';
+import GitHub from 'next-auth/providers/github';
+import Google from 'next-auth/providers/google';
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV !== 'production';
 
 const providers: Provider[] = [
   Google({
@@ -28,9 +28,9 @@ const providers: Provider[] = [
 if (isDev) {
   providers.push(
     Credentials({
-      name: "Dev Login",
+      name: 'Dev Login',
       credentials: {
-        email: { label: "Email", type: "email" },
+        email: { label: 'Email', type: 'email' },
       },
       async authorize(credentials) {
         const email = credentials?.email as string;
@@ -46,7 +46,7 @@ if (isDev) {
             .insert(users)
             .values({
               email,
-              name: email.split("@")[0],
+              name: email.split('@')[0],
             })
             .returning();
 
@@ -69,10 +69,10 @@ if (isDev) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
   },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account: _account }) {
       if (!user.email) {
         return false;
       }
@@ -134,7 +134,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
+    signIn: '/auth/signin',
+    error: '/auth/error',
   },
 });

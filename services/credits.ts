@@ -1,7 +1,6 @@
 import { db } from '@/db';
-import { credits, creditTransactions, usageLogs, messages } from '@/db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
-import { logger } from '@/lib/logger';
+import { creditTransactions, credits, usageLogs } from '@/db/schema';
+import { desc, eq, sql } from 'drizzle-orm';
 
 // Pricing: credits per 1K tokens (adjust based on your costs + margin)
 const CREDITS_PER_1K_INPUT_TOKENS = 1;
@@ -148,7 +147,10 @@ export async function logUsage(params: {
   outputTokens: number;
   model: string;
 }): Promise<{ creditsUsed: number }> {
-  const creditsUsed = calculateCreditsUsed(params.inputTokens, params.outputTokens);
+  const creditsUsed = calculateCreditsUsed(
+    params.inputTokens,
+    params.outputTokens,
+  );
 
   await db.insert(usageLogs).values({
     userId: params.userId,

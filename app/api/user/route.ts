@@ -1,9 +1,9 @@
-import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { createApiResponse } from '@/utils/create-api-response';
+import { auth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { createApiResponse } from '@/utils/create-api-response';
+import { eq } from 'drizzle-orm';
 
 const DOMAIN = '/api/user';
 

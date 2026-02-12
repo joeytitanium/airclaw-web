@@ -1,16 +1,16 @@
-import { db } from "@/db";
-import { messages } from "@/db/schema";
-import { logger } from "@/lib/logger";
-import { asc, desc, eq } from "drizzle-orm";
-import { hasEnoughCredits, logUsage } from "./credits";
-import { startMachine } from "./machine";
+import { db } from '@/db';
+import { messages } from '@/db/schema';
+import { logger } from '@/lib/logger';
+import { asc, desc, eq } from 'drizzle-orm';
+import { hasEnoughCredits, logUsage } from './credits';
+import { startMachine } from './machine';
 
 interface SendMessageResult {
   success: boolean;
   response?: string;
   messageId?: string;
   error?: string;
-  errorCode?: "insufficient-credits" | "machine-error" | "internal-error";
+  errorCode?: 'insufficient-credits' | 'machine-error' | 'internal-error';
 }
 
 interface MachineResponse {
@@ -28,17 +28,17 @@ export async function sendMessage(
   if (!(await hasEnoughCredits(userId))) {
     return {
       success: false,
-      error: "Insufficient credits",
-      errorCode: "insufficient-credits",
+      error: 'Insufficient credits',
+      errorCode: 'insufficient-credits',
     };
   }
 
   // Save user message
-  const [userMessage] = await db
+  const [_userMessage] = await db
     .insert(messages)
     .values({
       userId,
-      role: "user",
+      role: 'user',
       content,
     })
     .returning();
@@ -54,10 +54,10 @@ export async function sendMessage(
       limit: 20,
     });
     const chatMessages = recentMessages.reverse().map((m) => ({
-      role: m.role as "user" | "assistant",
+      role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
-    chatMessages.push({ role: "user", content });
+    chatMessages.push({ role: 'user', content });
 
     // Send to OpenClaw gateway
     const machineResponse = await sendToMachine(flyMachine.id, chatMessages);
@@ -67,7 +67,7 @@ export async function sendMessage(
       .insert(messages)
       .values({
         userId,
-        role: "assistant",
+        role: 'assistant',
         content: machineResponse.content,
       })
       .returning();
@@ -87,17 +87,17 @@ export async function sendMessage(
       messageId: assistantMessage.id,
     };
   } catch (error) {
-    logger.error({ err: error, userId }, "Failed to send message to machine");
+    logger.error({ err: error, userId }, 'Failed to send message to machine');
     return {
       success: false,
-      error: "Failed to process message",
-      errorCode: "machine-error",
+      error: 'Failed to process message',
+      errorCode: 'machine-error',
     };
   }
 }
 
-const FLY_APP_NAME = process.env.FLY_APP_NAME || "pocketclaw-openclaw";
-const MACHINE_SECRET = process.env.MACHINE_SECRET || "";
+const FLY_APP_NAME = process.env.FLY_APP_NAME || 'pocketclaw-openclaw';
+const MACHINE_SECRET = process.env.MACHINE_SECRET || '';
 
 async function sendToMachine(
   machineId: string,
@@ -105,14 +105,14 @@ async function sendToMachine(
 ): Promise<MachineResponse> {
   const url = `https://${FLY_APP_NAME}.fly.dev/v1/chat/completions`;
   const response = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${MACHINE_SECRET}`,
-      "fly-force-instance-id": machineId,
+      'fly-force-instance-id': machineId,
     },
     body: JSON.stringify({
-      model: "openclaw:main",
+      model: 'openclaw:main',
       messages: chatMessages,
     }),
   });
@@ -125,10 +125,10 @@ async function sendToMachine(
   const data = await response.json();
 
   return {
-    content: data.choices?.[0]?.message?.content || "",
+    content: data.choices?.[0]?.message?.content || '',
     inputTokens: data.usage?.prompt_tokens || 0,
     outputTokens: data.usage?.completion_tokens || 0,
-    model: data.model || "openclaw",
+    model: data.model || 'openclaw',
   };
 }
 

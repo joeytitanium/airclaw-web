@@ -1,9 +1,9 @@
+import { logger } from '@/lib/logger';
 import 'dotenv/config';
+import next from 'next';
 import { createServer } from 'node:http';
 import { parse } from 'node:url';
-import next from 'next';
-import { WebSocketServer, WebSocket } from 'ws';
-import { logger } from '@/lib/logger';
+import { WebSocket, WebSocketServer } from 'ws';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || 'localhost';
@@ -70,7 +70,10 @@ app.prepare().then(async () => {
     let userId: string | null = null;
 
     ws.on('close', (code, reason) => {
-      logger.info({ userId, code, reason: reason.toString() }, 'WebSocket disconnected');
+      logger.info(
+        { userId, code, reason: reason.toString() },
+        'WebSocket disconnected',
+      );
       if (userId) {
         connections.get(userId)?.delete(ws);
         if (connections.get(userId)?.size === 0) {
@@ -117,7 +120,10 @@ app.prepare().then(async () => {
           userId = userData.data.id;
         }
       } else {
-        logger.warn({ status: validateResponse.status }, 'WebSocket session validation failed');
+        logger.warn(
+          { status: validateResponse.status },
+          'WebSocket session validation failed',
+        );
       }
     } catch (error) {
       logger.error({ error }, 'Failed to validate WebSocket session');
@@ -135,7 +141,7 @@ app.prepare().then(async () => {
     if (!connections.has(userId)) {
       connections.set(userId, new Set());
     }
-    connections.get(userId)!.add(ws);
+    connections.get(userId)?.add(ws);
 
     // Set up message handler
     ws.on('message', async (data) => {
@@ -148,7 +154,7 @@ app.prepare().then(async () => {
             break;
 
           case 'status': {
-            const currentStatus = await getMachineStatus(userId!);
+            const currentStatus = await getMachineStatus(userId as string);
             ws.send(
               JSON.stringify({
                 type: 'status',
@@ -170,7 +176,7 @@ app.prepare().then(async () => {
             }
 
             // Check credits before processing
-            if (!(await hasEnoughCredits(userId!))) {
+            if (!(await hasEnoughCredits(userId as string))) {
               ws.send(
                 JSON.stringify({
                   type: 'error',
@@ -182,7 +188,7 @@ app.prepare().then(async () => {
             }
 
             // Send message and get response
-            const result = await sendMessage(userId!, message.content);
+            const result = await sendMessage(userId as string, message.content);
 
             if (result.success) {
               ws.send(

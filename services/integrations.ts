@@ -1,7 +1,7 @@
 import { db } from '@/db';
 import { integrations } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
-import { encrypt, decrypt } from '@/lib/encryption';
+import { decrypt, encrypt } from '@/lib/encryption';
+import { and, eq } from 'drizzle-orm';
 
 export type IntegrationType = 'gmail' | 'calendar';
 
@@ -35,10 +35,7 @@ export async function getIntegration(
   credentials?: IntegrationCredentials;
 }> {
   const integration = await db.query.integrations.findFirst({
-    where: and(
-      eq(integrations.userId, userId),
-      eq(integrations.type, type),
-    ),
+    where: and(eq(integrations.userId, userId), eq(integrations.type, type)),
   });
 
   if (!integration) {
@@ -64,10 +61,7 @@ export async function saveIntegration(
   const encryptedCredentials = encrypt(JSON.stringify(credentials));
 
   const existing = await db.query.integrations.findFirst({
-    where: and(
-      eq(integrations.userId, userId),
-      eq(integrations.type, type),
-    ),
+    where: and(eq(integrations.userId, userId), eq(integrations.type, type)),
   });
 
   if (existing) {
@@ -95,10 +89,7 @@ export async function toggleIntegration(
   enabled: boolean,
 ): Promise<boolean> {
   const integration = await db.query.integrations.findFirst({
-    where: and(
-      eq(integrations.userId, userId),
-      eq(integrations.type, type),
-    ),
+    where: and(eq(integrations.userId, userId), eq(integrations.type, type)),
   });
 
   if (!integration) {
@@ -118,10 +109,7 @@ export async function deleteIntegration(
   type: IntegrationType,
 ): Promise<boolean> {
   const integration = await db.query.integrations.findFirst({
-    where: and(
-      eq(integrations.userId, userId),
-      eq(integrations.type, type),
-    ),
+    where: and(eq(integrations.userId, userId), eq(integrations.type, type)),
   });
 
   if (!integration) {

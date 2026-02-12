@@ -1,9 +1,9 @@
 import { db } from '@/db';
-import { memories, integrations } from '@/db/schema';
-import { eq } from 'drizzle-orm';
-import { createApiResponse } from '@/utils/create-api-response';
-import { logger } from '@/lib/logger';
+import { integrations, memories } from '@/db/schema';
 import { decrypt } from '@/lib/encryption';
+import { logger } from '@/lib/logger';
+import { createApiResponse } from '@/utils/create-api-response';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 const DOMAIN = '/api/internal/sync';

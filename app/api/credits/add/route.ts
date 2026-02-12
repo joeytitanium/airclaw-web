@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { addCredits } from '@/services/credits';
 import { createApiResponse } from '@/utils/create-api-response';
-import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const DOMAIN = '/api/credits/add';
@@ -48,10 +48,7 @@ export async function POST(request: Request) {
 
     const result = await addCredits(userId, amount, type, description);
 
-    logger.info(
-      { userId, amount, type, domain: DOMAIN },
-      'Credits added',
-    );
+    logger.info({ userId, amount, type, domain: DOMAIN }, 'Credits added');
 
     return createApiResponse({
       code: '200-success',

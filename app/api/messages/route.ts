@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
-import { getMessageHistory, clearMessageHistory } from '@/services/message';
-import { createApiResponse } from '@/utils/create-api-response';
 import { logger } from '@/lib/logger';
+import { clearMessageHistory, getMessageHistory } from '@/services/message';
+import { createApiResponse } from '@/utils/create-api-response';
 
 const DOMAIN = '/api/messages';
 
@@ -17,8 +17,8 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get('limit') || '50', 10);
-    const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+    const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
+    const offset = Number.parseInt(url.searchParams.get('offset') || '0', 10);
 
     const messages = await getMessageHistory(session.user.id, limit, offset);
 

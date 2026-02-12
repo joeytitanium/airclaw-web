@@ -1,9 +1,9 @@
-import { auth } from "@/lib/auth";
-import { logger } from "@/lib/logger";
-import { getCreditHistory } from "@/services/credits";
-import { createApiResponse } from "@/utils/create-api-response";
+import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { getCreditHistory } from '@/services/credits';
+import { createApiResponse } from '@/utils/create-api-response';
 
-const DOMAIN = "/api/credits/history";
+const DOMAIN = '/api/credits/history';
 
 export async function GET(request: Request) {
   try {
@@ -11,18 +11,18 @@ export async function GET(request: Request) {
 
     if (!session?.user?.id) {
       return createApiResponse({
-        code: "401-unauthorized",
-        publicFacingMessage: "Not authenticated",
+        code: '401-unauthorized',
+        publicFacingMessage: 'Not authenticated',
       });
     }
 
     const url = new URL(request.url);
-    const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+    const limit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
 
     const history = await getCreditHistory(session.user.id, limit);
 
     return createApiResponse({
-      code: "200-success",
+      code: '200-success',
       data: {
         transactions: history.map((t) => ({
           id: t.id,
@@ -34,10 +34,10 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    logger.error({ error, domain: DOMAIN }, "Error fetching credit history");
+    logger.error({ error, domain: DOMAIN }, 'Error fetching credit history');
     return createApiResponse({
-      code: "500-internal-server-error",
-      publicFacingMessage: "An unexpected error occurred",
+      code: '500-internal-server-error',
+      publicFacingMessage: 'An unexpected error occurred',
     });
   }
 }

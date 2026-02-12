@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-const API_INTERNAL_CODES = [
-  'insufficient-credits',
-  'machine-error',
-] as const;
+const API_INTERNAL_CODES = ['insufficient-credits', 'machine-error'] as const;
 export type ApiInternalCode = (typeof API_INTERNAL_CODES)[number];
 
 const API_SUCCESS_PAYLOAD_SCHEMA = <T>(schema: z.ZodType<T>) =>

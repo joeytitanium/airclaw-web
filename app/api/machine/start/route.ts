@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { startMachine } from '@/services/machine';
 import { createApiResponse } from '@/utils/create-api-response';
-import { logger } from '@/lib/logger';
 
 const DOMAIN = '/api/machine/start';
 

@@ -1,13 +1,13 @@
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import {
+  type IntegrationType,
+  deleteIntegration,
   getIntegration,
   saveIntegration,
-  deleteIntegration,
   toggleIntegration,
-  type IntegrationType,
 } from '@/services/integrations';
 import { createApiResponse } from '@/utils/create-api-response';
-import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const DOMAIN = '/api/integrations/[type]';
@@ -19,7 +19,7 @@ function isValidType(type: string): type is IntegrationType {
 }
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {
@@ -178,7 +178,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ type: string }> },
 ) {
   try {

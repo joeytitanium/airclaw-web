@@ -1,5 +1,6 @@
 'use client';
 
+import { getRouteUrl } from '@/routing/get-route-url';
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
@@ -10,7 +11,10 @@ export default function DevLoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await signIn('credentials', { email, callbackUrl: '/dev/chat' });
+    await signIn('credentials', {
+      email,
+      callbackUrl: getRouteUrl({ to: '/chat' }),
+    });
   }
 
   return (

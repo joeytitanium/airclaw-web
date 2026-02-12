@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
+import { getRouteUrl } from '@/routing/get-route-url';
 import { redirect } from 'next/navigation';
 
-export default async function DevChatLayout({
+export default async function ChatLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -9,7 +10,7 @@ export default async function DevChatLayout({
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect('/dev');
+    redirect(getRouteUrl({ to: '/auth/signin' }));
   }
 
   return <>{children}</>;

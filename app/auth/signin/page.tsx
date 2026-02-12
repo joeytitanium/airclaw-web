@@ -1,16 +1,16 @@
 'use client';
 
+import { getRouteUrl } from '@/routing/get-route-url';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
-const providers = [
-  { id: 'google', name: 'Google' },
-];
+const providers = [{ id: 'google', name: 'Google' }];
 
 function SignInContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dev/chat';
+  const callbackUrl =
+    searchParams.get('callbackUrl') || getRouteUrl({ to: '/chat' });
   const error = searchParams.get('error');
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
@@ -64,7 +64,8 @@ function SignInContent() {
               border: 'none',
               borderRadius: 4,
               cursor: loadingProvider ? 'wait' : 'pointer',
-              opacity: loadingProvider && loadingProvider !== provider.id ? 0.5 : 1,
+              opacity:
+                loadingProvider && loadingProvider !== provider.id ? 0.5 : 1,
             }}
           >
             {loadingProvider === provider.id

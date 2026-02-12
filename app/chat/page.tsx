@@ -272,7 +272,7 @@ export default function DevChatPage() {
           </button>
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: '/dev' })}
+            onClick={() => signOut({ callbackUrl: '/' })}
             style={{ fontSize: '0.875rem', cursor: 'pointer' }}
           >
             Logout

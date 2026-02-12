@@ -25,7 +25,8 @@ const providers: Provider[] = [
   }),
 ];
 
-if (isDev) {
+// TODO: revert — temporarily enabled for prod testing
+if (true) {
   providers.push(
     Credentials({
       name: 'Dev Login',

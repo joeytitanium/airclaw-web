@@ -5,7 +5,8 @@ import { logger } from '@/lib/logger';
 import { eq } from 'drizzle-orm';
 
 const OPENCLAW_IMAGE =
-  process.env.OPENCLAW_IMAGE || 'registry.fly.io/airclaw-dev:v4-20260212085543';
+  process.env.OPENCLAW_IMAGE ||
+  'registry.fly.io/airclaw-dev:deployment-01KH8C37ZT4FDMF0GFEJPRJ2TB';
 
 export async function getOrCreateMachine(userId: string): Promise<{
   machine: typeof machines.$inferSelect;
@@ -140,7 +141,7 @@ export async function startMachine(userId: string): Promise<{
             guest: {
               cpu_kind: 'shared',
               cpus: 1,
-              memory_mb: 1024,
+              memory_mb: 2048,
             },
           },
         });

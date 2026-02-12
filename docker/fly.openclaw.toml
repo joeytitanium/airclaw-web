@@ -1,0 +1,4 @@
+app = "airclaw-dev"
+
+[build]
+  dockerfile = "Dockerfile.openclaw"

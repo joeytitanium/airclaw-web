@@ -96,7 +96,7 @@ export async function sendMessage(
   }
 }
 
-const FLY_APP_NAME = process.env.FLY_APP_NAME || 'pocketclaw-openclaw';
+const FLY_APP_NAME = process.env.FLY_APP_NAME || 'airclaw-dev';
 const MACHINE_SECRET = process.env.MACHINE_SECRET || '';
 
 async function sendToMachine(

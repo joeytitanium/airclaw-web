@@ -5,8 +5,7 @@ import { logger } from '@/lib/logger';
 import { eq } from 'drizzle-orm';
 
 const OPENCLAW_IMAGE =
-  process.env.OPENCLAW_IMAGE ||
-  'registry.fly.io/pocketclaw-openclaw:v4-20260212085543';
+  process.env.OPENCLAW_IMAGE || 'registry.fly.io/airclaw-dev:v4-20260212085543';
 
 export async function getOrCreateMachine(userId: string): Promise<{
   machine: typeof machines.$inferSelect;

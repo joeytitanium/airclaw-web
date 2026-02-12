@@ -1,8 +1,8 @@
-# PocketClaw Web
+# AirClaw Web
 
 ## Fly.io Deployment
 
-The `pocketclaw-openclaw` Fly app uses per-user machines created via the Machines API (in `services/machine.ts`), NOT standard `fly deploy` machines.
+The `airclaw-(dev/prod)` Fly app uses per-user machines created via the Machines API (in `services/machine.ts`), NOT standard `fly deploy` machines.
 
 **Never run `fly deploy` to update running machines.** It creates unwanted "app" process group machines that lack required env vars and will crash. Instead:
 

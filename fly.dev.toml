@@ -1,5 +1,5 @@
-# Fly.io configuration for the main AirClaw backend
-app = 'airclaw-prod'
+# Fly.io configuration for the AirClaw dev backend
+app = 'airclaw-dev'
 primary_region = 'sjc'
 
 [build]
@@ -13,7 +13,7 @@ primary_region = 'sjc'
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
   processes = ['app']
 
 [[vm]]

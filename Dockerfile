@@ -16,7 +16,7 @@ RUN pnpm install --frozen-lockfile || pnpm install
 COPY . .
 
 # Build the application
-RUN pnpm run build
+RUN pnpm next build
 
 # Production stage
 FROM node:20-slim AS runner

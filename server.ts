@@ -20,21 +20,11 @@ interface WSMessage {
   content?: string;
 }
 
-interface WSResponse {
-  type: 'message' | 'pong' | 'status' | 'error';
-  content?: string;
-  messageId?: string;
-  creditsUsed?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-  status?: string;
-  error?: string;
-  errorCode?: string;
-}
+import type { WSResponse } from '@/types/ws';
 
 app.prepare().then(async () => {
   // Dynamic imports — must load after app.prepare() so Next.js runtime is ready
-  const { sendMessage } = await import('@/services/message');
+  const { sendMessageStreaming } = await import('@/services/message');
   const { hasEnoughCredits } = await import('@/services/credits');
   const { getMachineStatus } = await import('@/services/machine');
   const server = createServer(async (req, res) => {
@@ -190,14 +180,28 @@ app.prepare().then(async () => {
               break;
             }
 
-            // Send message and get response
-            const result = await sendMessage(userId as string, message.content);
+            // Stream response from machine
+            ws.send(JSON.stringify({ type: 'stream_start' } as WSResponse));
+
+            const result = await sendMessageStreaming(
+              userId as string,
+              message.content,
+              (chunk) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(
+                    JSON.stringify({
+                      type: 'stream_chunk',
+                      content: chunk,
+                    } as WSResponse),
+                  );
+                }
+              },
+            );
 
             if (result.success) {
               ws.send(
                 JSON.stringify({
-                  type: 'message',
-                  content: result.response,
+                  type: 'stream_end',
                   messageId: result.messageId,
                   creditsUsed: result.creditsUsed,
                   inputTokens: result.inputTokens,

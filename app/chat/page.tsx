@@ -13,17 +13,7 @@ interface Message {
   outputTokens?: number;
 }
 
-interface WSResponse {
-  type: 'message' | 'pong' | 'status' | 'error';
-  content?: string;
-  messageId?: string;
-  creditsUsed?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-  status?: string;
-  error?: string;
-  errorCode?: string;
-}
+import type { WSResponse } from '@/types/ws';
 
 export default function DevChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -131,18 +121,40 @@ export default function DevChatPage() {
           case 'status':
             if (data.status) setMachineStatus(data.status);
             break;
-          case 'message':
+          case 'stream_start':
             setMessages((prev) => [
               ...prev,
-              {
-                id: data.messageId,
-                role: 'assistant',
-                content: data.content || '',
-                creditsUsed: data.creditsUsed,
-                inputTokens: data.inputTokens,
-                outputTokens: data.outputTokens,
-              },
+              { role: 'assistant', content: '' },
             ]);
+            break;
+          case 'stream_chunk':
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content + (data.content || ''),
+                };
+              }
+              return updated;
+            });
+            break;
+          case 'stream_end':
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.role === 'assistant') {
+                updated[updated.length - 1] = {
+                  ...last,
+                  id: data.messageId,
+                  creditsUsed: data.creditsUsed,
+                  inputTokens: data.inputTokens,
+                  outputTokens: data.outputTokens,
+                };
+              }
+              return updated;
+            });
             setSending(false);
             refreshCredits();
             break;
@@ -378,7 +390,8 @@ export default function DevChatPage() {
               <span>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
               {isAdmin && msg.creditsUsed != null && (
                 <span style={{ color: '#999' }}>
-                  {msg.creditsUsed} cr · {msg.inputTokens}in/{msg.outputTokens}out
+                  {msg.creditsUsed} cr · {msg.inputTokens}in/{msg.outputTokens}
+                  out
                 </span>
               )}
             </div>

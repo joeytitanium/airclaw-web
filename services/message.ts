@@ -1,6 +1,8 @@
 import { db } from '@/db';
 import { messages } from '@/db/schema';
 import { logger } from '@/lib/logger';
+import { createOpenAI } from '@ai-sdk/openai';
+import { streamText } from 'ai';
 import { asc, desc, eq } from 'drizzle-orm';
 import { hasEnoughCredits, logUsage } from './credits';
 import { startMachine } from './machine';
@@ -94,6 +96,129 @@ export async function sendMessage(
     };
   } catch (error) {
     logger.error({ err: error, userId }, 'Failed to send message to machine');
+    return {
+      success: false,
+      error: 'Failed to process message',
+      errorCode: 'machine-error',
+    };
+  }
+}
+
+interface StreamingResult {
+  success: boolean;
+  messageId?: string;
+  creditsUsed?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  error?: string;
+  errorCode?: 'insufficient-credits' | 'machine-error' | 'internal-error';
+}
+
+export async function sendMessageStreaming(
+  userId: string,
+  content: string,
+  onChunk: (text: string) => void,
+): Promise<StreamingResult> {
+  if (!(await hasEnoughCredits(userId))) {
+    return {
+      success: false,
+      error: 'Insufficient credits',
+      errorCode: 'insufficient-credits',
+    };
+  }
+
+  // Save user message
+  await db.insert(messages).values({ userId, role: 'user', content });
+
+  try {
+    const { flyMachine } = await startMachine(userId);
+
+    // Build conversation history
+    const recentMessages = await db.query.messages.findMany({
+      where: eq(messages.userId, userId),
+      orderBy: [desc(messages.createdAt)],
+      limit: 20,
+    });
+    const chatMessages = recentMessages.reverse().map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+    chatMessages.push({ role: 'user', content });
+
+    // Stream from OpenClaw via AI SDK with retry for 502 during gateway boot
+    const maxRetries = 12;
+    const retryDelayMs = 5000;
+    let fullText = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const openai = createOpenAI({
+          baseURL: `https://${FLY_APP_NAME}.fly.dev/v1`,
+          apiKey: MACHINE_SECRET,
+          headers: { 'fly-force-instance-id': flyMachine.id },
+        });
+
+        const result = streamText({
+          model: openai.chat('openclaw:main'),
+          messages: chatMessages,
+          maxRetries: 0,
+        });
+
+        for await (const chunk of result.textStream) {
+          fullText += chunk;
+          onChunk(chunk);
+        }
+
+        const usage = await result.usage;
+        inputTokens = usage.inputTokens ?? 0;
+        outputTokens = usage.outputTokens ?? 0;
+        break; // Success — exit retry loop
+      } catch (err) {
+        const errStr = String(err);
+        const isRetryable =
+          errStr.includes('502') || errStr.includes('No output generated');
+        if (isRetryable && attempt < maxRetries) {
+          logger.info(
+            { machineId: flyMachine.id, attempt: attempt + 1, maxRetries },
+            'Machine gateway not ready, retrying',
+          );
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          fullText = '';
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    // Save assistant message
+    const [assistantMessage] = await db
+      .insert(messages)
+      .values({ userId, role: 'assistant', content: fullText })
+      .returning();
+
+    // Log usage and deduct credits
+    const { creditsUsed } = await logUsage({
+      userId,
+      messageId: assistantMessage.id,
+      inputTokens,
+      outputTokens,
+      model: 'openclaw:main',
+    });
+
+    return {
+      success: true,
+      messageId: assistantMessage.id,
+      creditsUsed,
+      inputTokens,
+      outputTokens,
+    };
+  } catch (error) {
+    logger.error(
+      { err: error, userId },
+      'Failed to stream message from machine',
+    );
     return {
       success: false,
       error: 'Failed to process message',

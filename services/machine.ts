@@ -133,7 +133,7 @@ export async function startMachine(userId: string): Promise<{
                 protocol: 'tcp',
                 internal_port: 8080,
                 autostart: true,
-                autostop: true,
+                autostop: false,
                 min_machines_running: 0,
               },
             ],

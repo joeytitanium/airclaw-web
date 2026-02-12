@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { eq } from 'drizzle-orm';
 
 const OPENCLAW_IMAGE =
-  process.env.OPENCLAW_IMAGE || 'registry.fly.io/airclaw-dev:v4';
+  process.env.OPENCLAW_IMAGE || 'registry.fly.io/airclaw-dev:v9';
 
 export async function getOrCreateMachine(userId: string): Promise<{
   machine: typeof machines.$inferSelect;
@@ -124,6 +124,8 @@ export async function startMachine(userId: string): Promise<{
               BACKEND_URL: process.env.AUTH_URL || 'http://localhost:3000',
               ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
               MACHINE_SECRET: process.env.MACHINE_SECRET || '',
+              OPENCLAW_GATEWAY_TOKEN: process.env.MACHINE_SECRET || '',
+              OPENCLAW_GATEWAY_PORT: '8080',
             },
             auto_destroy: false,
             restart: { policy: 'no' },

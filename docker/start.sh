@@ -10,11 +10,7 @@ cat > /root/.openclaw/openclaw.json <<CONF
   "gateway": {
     "mode": "local",
     "port": 8080,
-    "bind": "lan",
-    "auth": {
-      "mode": "token",
-      "token": "${MACHINE_SECRET}"
-    },
+    "bind": "auto",
     "http": {
       "endpoints": {
         "chatCompletions": {
@@ -48,4 +44,5 @@ echo "OpenClaw config generated for user: ${USER_ID}"
 echo "Starting OpenClaw gateway on port 8080..."
 
 export NODE_OPTIONS="--max-old-space-size=768"
-exec openclaw gateway --port 8080
+export OPENCLAW_GATEWAY_TOKEN="${MACHINE_SECRET}"
+exec openclaw gateway --port 8080 --bind lan

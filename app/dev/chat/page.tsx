@@ -170,7 +170,17 @@ export default function DevChatPage() {
     try {
       const res = await fetch("/api/machine/start", { method: "POST" });
       const d = await res.json();
-      if (d.success) setMachineStatus(d.data.status);
+      if (d.success) {
+        setMachineStatus(d.data.status);
+      } else {
+        console.error("[machine/start] error:", d);
+        alert(
+          `Failed to start machine: ${d.publicFacingMessage || d.error || "Unknown error"}`,
+        );
+      }
+    } catch (err) {
+      console.error("[machine/start] fetch error:", err);
+      alert(`Failed to start machine: ${err}`);
     } finally {
       setMachineLoading(false);
     }
@@ -232,7 +242,7 @@ export default function DevChatPage() {
         }}
       >
         <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <strong>PocketClaw Dev</strong>
+          <strong>OpenClaw Dev</strong>
           <span style={{ color: "#666", fontSize: "0.875rem" }}>
             {userEmail}
           </span>
@@ -250,6 +260,7 @@ export default function DevChatPage() {
             WS: {wsConnected ? "connected" : "disconnected"}
           </span>
           <button
+            type="button"
             onClick={async () => {
               await fetch("/api/messages", { method: "DELETE" });
               setMessages([]);
@@ -259,6 +270,7 @@ export default function DevChatPage() {
             Clear
           </button>
           <button
+            type="button"
             onClick={() => signOut({ callbackUrl: "/dev" })}
             style={{ fontSize: "0.875rem", cursor: "pointer" }}
           >

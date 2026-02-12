@@ -1,9 +1,0 @@
-{
-  "name": "openclaw-server",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "tsx": "^4.20.6"
-  }
-}

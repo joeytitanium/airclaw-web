@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 
 const OPENCLAW_IMAGE =
   process.env.OPENCLAW_IMAGE ||
-  'registry.fly.io/pocketclaw-openclaw:deployment-01KH74Y523893F1BCR5Z7T5V8E';
+  'registry.fly.io/pocketclaw-openclaw:v4-20260212085543';
 
 export async function getOrCreateMachine(userId: string): Promise<{
   machine: typeof machines.$inferSelect;
@@ -44,6 +44,17 @@ export async function getOrCreateMachine(userId: string): Promise<{
     try {
       const fly = createFlyClient();
       const flyMachine = await fly.getMachine(machine.machineId);
+
+      // If the machine was destroyed, clear it so we create a new one
+      if (flyMachine.state === 'destroyed') {
+        const [updated] = await db
+          .update(machines)
+          .set({ machineId: null, status: 'stopped', updatedAt: new Date() })
+          .where(eq(machines.id, machine.id))
+          .returning();
+        machine = updated;
+        return { machine, flyMachine: null };
+      }
 
       // Sync status with Fly
       const status = mapFlyStateToStatus(flyMachine.state);
@@ -98,38 +109,59 @@ export async function startMachine(userId: string): Promise<{
       await fly.startMachine(flyMachine.id);
       resultMachine = await fly.waitForState(flyMachine.id, 'started');
     } else {
-      // Create new Fly machine
-      resultMachine = await fly.createMachine({
-        name: `openclaw-${userId.slice(0, 8)}`,
-        config: {
-          image: OPENCLAW_IMAGE,
-          env: {
-            USER_ID: userId,
-            BACKEND_URL: process.env.AUTH_URL || 'http://localhost:3000',
-            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
-            MACHINE_SECRET: process.env.MACHINE_SECRET || '',
-          },
-          auto_destroy: false,
-          restart: { policy: 'no' },
-          services: [
-            {
-              ports: [{ port: 443, handlers: ['tls', 'http'] }],
-              protocol: 'tcp',
-              internal_port: 8080,
-              autostart: true,
-              autostop: true,
-              min_machines_running: 0,
-            },
-          ],
-          guest: {
-            cpu_kind: 'shared',
-            cpus: 1,
-            memory_mb: 256,
-          },
-        },
-      });
+      const machineName = `openclaw-${userId.slice(0, 8)}`;
 
-      // Wait for machine to start
+      try {
+        // Create new Fly machine
+        resultMachine = await fly.createMachine({
+          name: machineName,
+          config: {
+            image: OPENCLAW_IMAGE,
+            env: {
+              USER_ID: userId,
+              BACKEND_URL: process.env.AUTH_URL || 'http://localhost:3000',
+              ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+              MACHINE_SECRET: process.env.MACHINE_SECRET || '',
+            },
+            auto_destroy: false,
+            restart: { policy: 'no' },
+            services: [
+              {
+                ports: [{ port: 443, handlers: ['tls', 'http'] }],
+                protocol: 'tcp',
+                internal_port: 8080,
+                autostart: true,
+                autostop: true,
+                min_machines_running: 0,
+              },
+            ],
+            guest: {
+              cpu_kind: 'shared',
+              cpus: 1,
+              memory_mb: 1024,
+            },
+          },
+        });
+      } catch (createError) {
+        // Handle name conflict (409) — find existing machine by name
+        if (String(createError).includes('already_exists')) {
+          logger.info({ machineName }, 'Machine name conflict, looking up existing machine');
+          const allMachines = await fly.listMachines();
+          const existing = allMachines.find((m) => m.name === machineName);
+          if (existing) {
+            if (existing.state !== 'started') {
+              await fly.startMachine(existing.id);
+            }
+            resultMachine = await fly.waitForState(existing.id, 'started');
+          } else {
+            throw createError;
+          }
+        } else {
+          throw createError;
+        }
+      }
+
+      // Wait for machine to reach started state
       resultMachine = await fly.waitForState(resultMachine.id, 'started');
     }
   } catch (error) {
